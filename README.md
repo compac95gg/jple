@@ -19,6 +19,3 @@ npm start
 
 설치 파일 만들기: `npm run dist` → `dist/jple_설치_버전.exe`
 
-## 제작자
-
-tj, hs
