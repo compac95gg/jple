@@ -3,6 +3,7 @@
   "productName": "jple",
   "version": "0.4.4",
   "description": "jple - 학교 일정 공유 바탕화면 위젯",
+  "author": "tj, hs",
   "main": "src/main.js",
   "private": true,
   "scripts": {
