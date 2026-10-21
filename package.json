@@ -1,0 +1,45 @@
+{
+  "name": "school-widget",
+  "productName": "jple",
+  "version": "0.4.4",
+  "description": "jple - 학교 일정 공유 바탕화면 위젯",
+  "main": "src/main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
+    "bcryptjs": "^3.0.3",
+    "exceljs": "^4.4.0",
+    "koffi": "^3.3.3",
+    "selfsigned": "^5.5.0",
+    "undici": "^8.12.2"
+  },
+  "devDependencies": {
+    "electron": "^44.8.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "kr.school.widget",
+    "productName": "jple",
+    "files": [
+      "src/**/*",
+      "supabase/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "artifactName": "jple_설치_${version}.${ext}",
+      "shortcutName": "jple"
+    }
+  }
+}

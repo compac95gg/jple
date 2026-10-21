@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'">
+  <title>jple</title>
+  <link rel="stylesheet" href="widget.css">
+</head>
+<body>
+  <div class="widget">
+    <!-- 맨 위 제목 줄: 프로그램 이름과 버전, 창 버튼 (끌어서 위젯을 옮겨요) -->
+    <header class="titlebar">
+      <span class="app-name">jple</span>
+      <span id="app-version" class="app-version"></span>
+      <span class="spacer"></span>
+      <span class="win-buttons">
+        <button id="win-hide" title="최소화 (작업 표시줄에서 다시 열어요)">─</button>
+        <button id="win-full" title="최대화">☐</button>
+        <button id="quit" class="close" title="숨기기 (시계 옆 아이콘이나 바탕화면 아이콘으로 다시 열어요)">✕</button>
+      </span>
+    </header>
+
+    <div class="bar">
+      <!-- 왼쪽: 일정 추가 / 가운데: 이름과 화면 전환 스위치 / 오른쪽: 설정, 로그인·로그아웃 -->
+      <div class="bar-left">
+        <button id="add-event" class="primary" disabled>+ 일정</button>
+      </div>
+      <div class="bar-center">
+        <span id="who-am-i" class="badge"></span>
+        <label class="switch-wrap" title="누르면 이 화면으로 바뀌어요">
+          <span id="toggle-label">주간업무</span>
+          <input id="toggle-view" class="switch" type="checkbox" role="switch" disabled>
+        </label>
+      </div>
+      <div class="bar-right">
+        <button id="open-settings" title="설정">⚙</button>
+        <button id="auth-button">🔑 로그인</button>
+      </div>
+    </div>
+
+    <main>
+      <!-- 왼쪽: 시간 | 내 업무 | 학교 전체 (한 번에 같이 스크롤) -->
+      <section class="left">
+        <div class="tl-head"><span></span><h2 id="mine-title">내 업무</h2><h2 id="school-title">학교 전체</h2></div>
+        <div id="timeline" class="timeline"></div>
+      </section>
+
+      <section class="right">
+        <div class="month-nav">
+          <button id="prev" title="이전 달">◀</button>
+          <strong id="month-title"></strong>
+          <button id="next" title="다음 달">▶</button>
+          <button id="today">오늘</button>
+        </div>
+        <div id="calendar" class="calendar"></div>
+      </section>
+    </main>
+
+    <!-- 주간업무 표 (⇄ 토글로 달력과 바꿔 봐요) -->
+    <section id="week-view" class="week" hidden>
+      <div class="week-toolbar">
+        <button id="week-prev" title="이전 주">◀</button>
+        <button id="week-today">이번 주</button>
+        <button id="week-next" title="다음 주">▶</button>
+        <strong id="week-title"></strong>
+        <span class="spacer"></span>
+        <button id="week-print">인쇄</button>
+        <button id="week-excel">엑셀</button>
+      </div>
+      <div class="week-scroll"><table id="week-table" class="week-table"></table></div>
+    </section>
+
+    <!-- 로그인 -->
+    <div id="login" class="overlay" hidden>
+      <form id="login-form" class="card narrow">
+        <h3>jple 로그인</h3>
+        <label class="field"><span>아이디</span><input id="login-id" autocomplete="username" required></label>
+        <label class="field"><span>비밀번호</span><input id="login-pw" type="password" autocomplete="current-password" required></label>
+        <p class="error" id="login-error"></p>
+        <div class="actions">
+          <button type="button" id="login-close">닫기</button>
+          <button class="primary" type="submit">로그인</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- 비밀번호 바꾸기 (처음 로그인하면 꼭 거쳐요) -->
+    <div id="password" class="overlay" hidden>
+      <form id="password-form" class="card narrow">
+        <h3>새 비밀번호 정하기</h3>
+        <p id="password-note" class="note">처음 비밀번호로 로그인했어요. 나만 아는 비밀번호로 바꿔 주세요.</p>
+        <label class="field"><span>새 비밀번호 (8자 이상)</span><input id="new-pw" type="password" autocomplete="new-password" required></label>
+        <label class="field"><span>한 번 더</span><input id="new-pw2" type="password" autocomplete="new-password" required></label>
+        <p class="error" id="password-error"></p>
+        <div class="actions">
+          <button type="button" id="password-cancel">취소</button>
+          <button class="primary" type="submit">바꾸기</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- 일정 입력·수정 -->
+    <div id="event" class="overlay" hidden>
+      <form id="event-form" class="card">
+        <h3 id="event-heading">일정 입력</h3>
+        <p id="ev-lock" class="lock-note" hidden></p>
+        <p class="note">학생 이름 등 개인정보는 적지 마세요.</p>
+        <div class="line author-line">
+          <span>작성자</span><b id="ev-author"></b>
+          <span>구분</span><select id="ev-category" required></select>
+        </div>
+        <label class="line"><span>제목</span><input id="ev-title" required></label>
+        <div class="line three"><span>날짜</span>
+          <input id="ev-start" type="date" required>
+          <input id="ev-start-time" type="time" title="비우면 하루 종일">
+        </div>
+        <div class="line three"><span>끝 날짜</span>
+          <input id="ev-end" type="date" title="여러 날 일정일 때만">
+          <input id="ev-end-time" type="time" title="끝 시각">
+        </div>
+        <p class="note hint">시각을 비우면 하루 종일, 끝 날짜는 여러 날 일정일 때만 적어요.</p>
+        <label class="line"><span>장소</span><input id="ev-location"></label>
+        <label class="line"><span>메모</span><textarea id="ev-memo" rows="2"></textarea></label>
+        <p class="error" id="event-error"></p>
+        <div class="actions">
+          <button type="button" id="ev-delete" class="danger">삭제</button>
+          <button type="button" id="ev-add-same" class="primary">같은 시간에 내 일정 추가</button>
+          <span class="spacer"></span>
+          <button type="button" id="ev-cancel">닫기</button>
+          <button class="primary" type="submit" id="ev-save">저장</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- 하루 일정 전체 (+N 눌렀을 때) -->
+    <div id="day" class="overlay" hidden>
+      <div class="card day-card">
+        <h3 id="day-heading"></h3>
+        <div id="day-list" class="day-list"></div>
+        <div class="actions">
+          <button id="day-add" class="primary">+ 이 날 일정 추가</button>
+          <span class="spacer"></span>
+          <button id="day-close">닫기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 설정 -->
+    <div id="settings" class="overlay" hidden>
+      <div class="card settings-card" id="settings-card">
+        <div class="card-title"><b id="settings-title">jple 설정</b><span class="spacer"></span><span class="db-badge" id="settings-db"></span></div>
+        <div class="tabs">
+          <button class="tab active" data-tab="personal">개인 설정</button>
+          <button class="tab" data-tab="admin" id="admin-tab-button" hidden>관리자 설정</button>
+          <span class="spacer"></span>
+          <button id="close-settings">닫기</button>
+        </div>
+
+        <section data-panel="personal">
+          <label class="field">
+            <span>배경 진하기 <b id="opacity-value"></b> (100%면 불투명)</span>
+            <input id="opacity" type="range" min="30" max="100" step="5">
+          </label>
+          <div class="field">
+            <span>색 테마 <b id="theme-name"></b></span>
+            <div id="themes" class="themes"></div>
+          </div>
+          <div id="custom-colors" class="check" hidden>
+            <span>바탕</span><input id="custom-bg" type="color" value="#eef3f8">
+            <span>강조</span><input id="custom-accent" type="color" value="#2f6fde">
+          </div>
+          <label class="check"><input id="auto-start" type="checkbox"> 윈도우 시작 시 자동 실행</label>
+          <div class="field notify-prefs">
+            <span>다른 사람 일정 알림 받기</span>
+            <label class="check"><input id="notify-add" type="checkbox"> 새 일정 추가</label>
+            <label class="check"><input id="notify-change" type="checkbox"> 고치거나 지운 것</label>
+            <label class="check"><input id="notify-none" type="checkbox"> 알림 받지 않음</label>
+          </div>
+          <p class="note" id="my-account"></p>
+          <div class="actions">
+            <button id="open-help">❓ 도움말</button>
+            <button id="open-connect" title="관리자에게 받은 새 연결 코드를 넣어요">🔗 연결 바꾸기</button>
+            <span class="spacer"></span>
+            <button id="open-password">비밀번호 바꾸기</button>
+            <button id="logout">로그아웃</button>
+          </div>
+        </section>
+
+        <section data-panel="admin" hidden>
+          <h4>계정 추가</h4>
+          <form id="account-form" class="account-form">
+            <input id="acc-name" placeholder="이름" required>
+            <input id="acc-id" placeholder="아이디 (영어 소문자, 숫자)" required>
+            <input id="acc-pw" placeholder="처음 비밀번호 (8자 이상)" required>
+            <select id="acc-category"></select>
+            <label class="check"><input id="acc-admin" type="checkbox"> 관리자</label>
+            <button class="primary" type="submit">계정 추가</button>
+          </form>
+          <div class="admin-tools">
+            <button type="button" id="category-toggle" class="fold-toggle">▸ 구분(부서) 관리</button>
+            <span class="spacer"></span>
+            <form id="default-pw-form" class="inline-form default-pw" title="저장해 두면 계정 추가와 비밀번호 초기화 칸에 미리 채워져요">
+              <span class="note">기본 처음 비밀번호</span>
+              <input id="default-pw" placeholder="8자 이상">
+              <button type="submit">저장</button>
+            </form>
+          </div>
+          <div id="category-panel" class="category-panel" hidden>
+            <p class="note">이름이나 색을 바꾸면 바로 저장돼요. 일정이 있는 구분은 삭제하면 목록에서만 숨겨져요.</p>
+            <div id="category-rows" class="category-rows"></div>
+            <form id="category-form" class="inline-form">
+              <input id="cat-color" type="color" value="#4e79a7" title="색">
+              <input id="cat-name" placeholder="새 구분 이름" required>
+              <button class="primary" type="submit">구분 추가</button>
+            </form>
+            <p class="note" id="category-message"></p>
+          </div>
+          <p class="note" id="admin-message"></p>
+
+          <div class="list-head">
+            <button type="button" id="accounts-toggle" class="fold-toggle">▸ 계정 목록</button>
+            <span class="spacer"></span>
+            <button type="button" id="db-open" title="DB 백업, 복원, 초기화, 새 DB 만들기">🗄 DB 관리</button>
+            <button type="button" id="reset-all-open" class="danger" title="관리자를 뺀 모든 계정의 비밀번호를 한꺼번에 초기화해요">🔑 전체 비밀번호 초기화</button>
+            <button type="button" id="accounts-template" title="새 사람만 적어 올릴 때">⬇ 빈 양식 받기</button>
+            <button type="button" id="accounts-export" title="지금 계정이 모두 들어 있어요">⬇ 전체 명단 받기</button>
+            <button type="button" id="accounts-import">⬆ 엑셀로 올리기</button>
+          </div>
+          <div id="accounts-panel" class="category-panel" hidden>
+            <p class="note">새 사람은 빈 양식에, 고칠 사람은 전체 명단에 적어 올리세요. 올리기는 <b>추가와 수정만</b> 해요. 엑셀에 없는 계정은 지우지 않아요. 비밀번호 칸에 적으면 그 비밀번호로 만들거나 초기화해요(비밀번호는 보안상 받을 수 없어요).</p>
+            <table class="accounts">
+              <thead><tr><th>이름</th><th>아이디</th><th>기본 구분</th><th>관리자</th><th></th></tr></thead>
+              <tbody id="account-rows"></tbody>
+            </table>
+          </div>
+
+        </section>
+      </div>
+    </div>
+
+    <!-- DB 관리: 관리자 아이디와 비밀번호를 다시 확인한 뒤 메뉴가 열려요 -->
+    <div id="db" class="overlay" hidden>
+      <form id="db-login" class="card narrow">
+        <h3>🗄 DB 관리 (관리자 확인)</h3>
+        <p class="note">jple에 로그인할 때 쓰는 관리자 아이디와 비밀번호를 넣어 주세요.</p>
+        <label class="field"><span>아이디</span><input id="db-id" autocomplete="username" required></label>
+        <label class="field"><span>비밀번호</span><input id="db-pw" type="password" autocomplete="current-password" required></label>
+        <p class="error" id="db-login-error"></p>
+        <div class="actions">
+          <button type="button" class="db-close">취소</button>
+          <button type="submit" class="primary">확인</button>
+        </div>
+      </form>
+
+      <div id="db-menu" class="card db-card" hidden>
+        <div class="actions"><h3>🗄 DB 관리</h3><span class="spacer"></span><button type="button" class="db-close">닫기</button></div>
+        <div class="db-status-row">
+          <div class="db-status" id="db-status"></div>
+          <button type="button" id="db-info-toggle">🔎 DB 정보</button>
+        </div>
+        <div class="db-info" id="db-info" hidden></div>
+
+        <div class="db-section" id="standby-section" hidden>
+          <b>서버 구성 (자동 전환)</b> <span class="note">주 서버 1대 + 대기 서버 최대 2대 (없어도 돼요)</span>
+          <div id="standby-list" class="standby-list"></div>
+          <div class="actions start"><b class="sub-head">지금 jple에 로그인해 있는 PC</b><span class="spacer"></span><button type="button" id="standby-refresh">↻ 새로고침</button></div>
+          <div id="pc-list" class="standby-list"></div>
+          <p class="note">PC를 골라 [대기 1로]/[대기 2로]를 누르면 그 PC 화면에 확인 창이 떠요. 그 PC에서 <b>수락</b>하면 대기 서버가 돼요. 대기 서버 PC는 늘 켜 두어야 해요.</p>
+        </div>
+
+        <div class="db-section">
+          <b>업데이트 배포</b> <span class="note">관리자가 배포하면 모든 PC의 jple이 저절로 바뀌어요</span>
+          <p class="note" id="update-status"></p>
+          <div class="actions start"><button type="button" id="update-publish">📤 설치 파일 골라 배포하기</button></div>
+          <p class="note">새 버전 설치 파일(jple_설치_0.4.1.exe 같은 파일)을 고르면 지금 DB에 올려요. 직원 PC는 받아 두었다가 다음에 jple을 켤 때 조용히 바뀌어요.</p>
+        </div>
+
+        <div class="db-section">
+          <b>백업과 복원</b>
+          <div class="actions start">
+            <button type="button" id="db-backup">💾 DB 백업 (파일로 저장)</button>
+            <button type="button" id="db-restore">↩ 백업 파일로 복원</button>
+          </div>
+          <p class="note">복원하면 지금 일정이 백업의 일정으로 바뀌어요. 백업에는 있는데 지금 없는 계정은 기본 처음 비밀번호로 다시 만들어요. 하루 1번 자동 백업(최근 30개)은 서버 PC나 관리자 PC의 jple 폴더 backups에 있어요(파일 이름 jple_매일백업_날짜).</p>
+        </div>
+
+        <div class="db-section">
+          <b>다른 DB로 옮기기 (외부 ↔ 로컬)</b> <span class="note">모두 쓰던 비밀번호 그대로</span>
+          <div class="actions start">
+            <button type="button" id="move-out">📦 옮기기 파일 만들기</button>
+            <button type="button" id="move-in">📥 옮기기 파일 가져오기</button>
+          </div>
+          <input id="move-pw" type="password" placeholder="가져올 파일의 비밀번호 (지금 관리자 비밀번호와 같으면 비워 두세요)" autocomplete="off" />
+          <p class="note">① 옮기기 전 DB에서 파일을 만들어요(지금 관리자 비밀번호로 잠겨요). ② 옮길 DB에 연결해서 이 DB 관리에서 가져와요. 일정은 파일 내용으로 바뀌고, 같은 아이디는 파일의 비밀번호로 바뀌어요. ③ 직원들에게 새 연결 코드를 보내요.</p>
+        </div>
+
+        <div class="db-section">
+          <b>DB 초기화</b> <span class="note">실행 직전에 자동으로 백업해요</span>
+          <label class="check"><input type="radio" name="db-scope" value="events" checked> 일정만 모두 지우기</label>
+          <label class="check"><input type="radio" name="db-scope" value="accounts"> 일정 + 관리자 외 계정 지우기</label>
+          <label class="check"><input type="radio" name="db-scope" value="all"> 전부 처음 상태로 (일정, 관리자 외 계정, 부서는 기본 20개로)</label>
+          <div class="actions start"><button type="button" id="db-reset" class="danger-fill">⚠ 초기화</button></div>
+        </div>
+
+        <div class="db-section">
+          <b>새 DB 만들기와 연결</b>
+          <p class="note" id="db-connection"></p>
+          <div class="actions start">
+            <button type="button" id="wizard-open" class="primary">🪄 새 DB 만들기 마법사</button>
+            <button type="button" id="db-copy-code">🔗 지금 DB의 연결 코드 복사</button>
+            <button type="button" id="db-other">다른 DB에 연결</button>
+          </div>
+          <p class="note">마법사가 한 단계씩 묻고, 필요한 Supabase 화면을 열어 주고, 제대로 됐는지 직접 확인해요.</p>
+        </div>
+        <p class="error" id="db-error"></p>
+        <p class="note" id="db-message"></p>
+      </div>
+    </div>
+
+    <!-- 처음 설정: 연결할 DB를 정해요 (일반 직원은 연결 코드, 회사 관리자 1명은 새 DB 만들기) -->
+    <div id="setup" class="overlay" hidden>
+      <div class="card setup-card">
+        <h3>jple 처음 설정</h3>
+        <p class="note">어느 DB에 연결할까요? 처음 한 번만 하면 돼요.</p>
+        <div class="setup-choice">
+          <b>🔗 연결 코드 넣기</b>
+          <span class="note">관리자에게 받은 연결 코드(jple-연결:로 시작)를 붙여 넣어요. 대부분은 이걸 고르면 돼요.</span>
+          <textarea id="setup-code" rows="3" placeholder="jple-연결:..."></textarea>
+          <div class="actions start"><button type="button" id="setup-connect" class="primary">연결하기</button></div>
+        </div>
+        <div class="setup-choice">
+          <b>🪄 새 DB 만들기 (외부 인터넷 DB)</b>
+          <span class="note">회사에서 jple을 처음 쓰는 관리자 1명만 해요. 끝나면 직원들에게 나눠 줄 연결 코드가 나와요.</span>
+          <div class="actions start"><button type="button" id="setup-wizard">새 DB 만들기 마법사</button></div>
+        </div>
+        <div class="setup-choice">
+          <b>🖥 이 PC를 서버로 시작 (로컬 DB)</b>
+          <span class="note">인터넷 DB 대신 학교 안의 PC 1대에 일정을 모아요. 이 PC는 늘 켜 두어야 해요. 관리자 아이디는 admin이고, 비밀번호를 여기서 정해요.</span>
+          <input id="server-pw" type="password" placeholder="관리자 비밀번호 (8자 이상)" autocomplete="new-password" />
+          <input id="server-pw2" type="password" placeholder="한 번 더" autocomplete="new-password" />
+          <div class="actions start"><button type="button" id="server-start">이 PC를 서버로 시작</button></div>
+        </div>
+        <p class="error" id="setup-error"></p>
+        <p class="ok-note" id="setup-ok"></p>
+        <div class="actions"><span class="spacer"></span><button type="button" id="setup-close" hidden>닫기</button></div>
+      </div>
+    </div>
+
+    <!-- 새 DB 만들기 마법사: 한 단계씩 안내하고 확인해요 -->
+    <div id="wizard" class="overlay" hidden>
+      <div class="card wizard-card">
+        <div class="actions"><h3>🪄 새 DB 만들기</h3><span class="spacer"></span><button type="button" id="wizard-close">닫기</button></div>
+        <ol id="wizard-steps" class="wizard-steps"></ol>
+        <div class="wizard-body">
+          <h4 id="wizard-title"></h4>
+          <div id="wizard-text" class="wizard-text"></div>
+          <div id="wizard-actions" class="actions start"></div>
+          <input id="wizard-input" hidden>
+          <p class="error" id="wizard-error"></p>
+          <p class="ok-note" id="wizard-ok"></p>
+        </div>
+        <div class="actions">
+          <button type="button" id="wizard-prev">◀ 이전</button>
+          <span class="spacer"></span>
+          <button type="button" id="wizard-next" class="primary">확인하고 다음 ▶</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 도움말 -->
+    <div id="help" class="overlay" hidden>
+      <div class="card help-card">
+        <h3>jple 사용 방법</h3>
+        <ol class="help-list">
+          <li><b>처음 설정</b>: 설치하고 처음 켜면 연결할 DB를 물어요. 관리자에게 받은 <b>연결 코드</b>(jple-연결:로 시작)를 붙여 넣어요. 회사에서 처음 쓰는 관리자 1명만 <b>새 DB 만들기</b>를 해요.</li>
+          <li><b>아이디와 비밀번호</b>: 연결 코드는 DB만 정해 줘요. 아이디와 <b>처음 비밀번호</b>는 관리자가 계정을 만들어 따로 알려 줘요. 관리자 아이디는 <b>admin</b>, 비밀번호는 새 DB 만들기 6단계에서 정한 것이에요.</li>
+          <li><b>로그인</b>: 위쪽 🔑 로그인을 누르고, 받은 아이디와 처음 비밀번호를 넣어요. 비밀번호를 잊으면 관리자가 계정 목록에서 <b>비밀번호 초기화</b>를 해 줘요.</li>
+          <li><b>처음 비밀번호 바꾸기</b>: 처음 로그인하면 새 비밀번호(8자 이상)를 두 번 넣어 바꿔요. 나중에는 ⚙ → 개인 설정 → 비밀번호 바꾸기.</li>
+          <li><b>일정 넣기</b>: 위쪽 <b>+ 일정</b>을 누르거나, 왼쪽 시간 줄의 빈 곳이나 <b>+</b>를 눌러요. 구분, 제목, 날짜, 시각, 장소를 적고 저장해요.</li>
+          <li><b>하루 일정 보기</b>: 달력의 날짜 칸을 누르면 그날 일정이 한 줄씩 떠요. 왼쪽 내 업무와 학교 전체도 그날로 바뀌어요.</li>
+          <li><b>고치기·지우기</b>: 일정을 눌러 고치거나 지워요. 다른 사람 일정은 볼 수만 있어요(관리자는 모두 고칠 수 있어요).</li>
+          <li><b>주간업무 표</b>: 위쪽 스위치를 켜면 주간업무 표로 바뀌어요. 빈 칸을 누르면 그 부서, 그 날짜로 입력돼요.</li>
+          <li><b>인쇄·엑셀</b>: 주간업무 표의 [인쇄]는 A4 가로 한 장, [엑셀]은 엑셀 파일로 저장해요.</li>
+          <li><b>알림</b>: 다른 사람이 일정을 넣거나 고치거나 지우면 화면 오른쪽 아래에 알림이 떠요. ⚙ → 개인 설정에서 고를 수 있어요.</li>
+          <li><b>숨기기와 끄기</b>: ✕는 숨기기예요. 시계 옆 아이콘을 누르면 다시 나타나요. 완전히 끄려면 그 아이콘을 오른쪽 클릭 → 완전히 종료.</li>
+          <li><b>로컬 서버</b>: 인터넷 DB 대신 학교 안 PC 1대에 일정을 모을 수 있어요. 처음 설정에서 <b>이 PC를 서버로 시작</b>을 고르고 관리자 비밀번호를 정해요. 서버 PC는 늘 켜 두고, 직원들에게 DB 관리의 <b>연결 코드</b>를 보내요.</li>
+          <li><b>대기 서버</b>: 로컬 서버가 꺼질 때를 대비해 PC를 1~2대 더 둘 수 있어요(없어도 돼요). 관리자가 DB 관리 → <b>서버 구성</b>의 "지금 jple에 로그인해 있는 PC" 목록에서 PC를 골라 <b>대기 1로</b>/<b>대기 2로</b>를 누르면, 그 PC에 확인 창이 떠요. 그 PC에서 <b>수락</b>하면 대기 서버가 돼요. 주 서버가 꺼지면 몇 초 안에 대기 서버가 대신 일하고, 주 서버가 켜지면 저절로 돌아와요.</li>
+          <li><b>서버 PC 관리</b>: 서버 PC(주·대기)는 jple이 절전을 막아 줘요. 다만 윈도우에 로그인해야 jple이 켜지니, 정전 뒤에도 서버가 켜지게 하려면 윈도우 <b>자동 로그인</b>을 켜 두세요(윈도우 키 + R → netplwiz → "사용자 이름과 암호를 입력해야…" 체크 해제). 서버 PC의 주소는 가능하면 전산 담당께 고정해 달라고 부탁하세요.</li>
+          <li><b>업데이트</b>: 관리자가 새 버전을 자기 PC에 설치한 뒤 DB 관리 → <b>업데이트 배포</b>에서 설치 파일을 고르면, 다른 PC들은 받아 두었다가 다음에 jple을 켤 때 저절로 바뀌어요. 바로 바꾸려면 시계 옆 아이콘 → "지금 업데이트".</li>
+          <li><b>로그인과 보안</b>: 로컬 서버는 90일 동안 안 쓰면 로그인이 풀리고, 비밀번호를 5번 연속 틀리면 5분 동안 막혀요. 관리자가 비밀번호를 초기화하면 그 사람은 다시 로그인해야 해요. 학교 안 통신은 https로 암호화돼요.</li>
+          <li><b>다른 DB로 옮기기</b>: 옮기기 전 DB의 DB 관리에서 <b>옮기기 파일 만들기</b> → 옮길 DB의 DB 관리에서 <b>옮기기 파일 가져오기</b>. 모두 쓰던 비밀번호 그대로 로그인해요. 직원들은 ⚙ → 개인 설정 → <b>🔗 연결 바꾸기</b>에 새 연결 코드를 넣어요.</li>
+          <li><b>꾸미기</b>: ⚙ → 개인 설정에서 배경 진하기와 색 테마를 바꿔요. 위쪽을 끌어 옮기고, 오른쪽 아래 모서리를 끌어 크기를 바꿔요.</li>
+        </ol>
+        <div class="actions"><span class="spacer"></span><button id="help-close">닫기</button></div>
+      </div>
+    </div>
+
+    <!-- 전체 비밀번호 초기화: 관리자 비밀번호를 한 번 더 확인해요 -->
+    <div id="reset-all" class="overlay" hidden>
+      <form id="reset-all-form" class="card narrow">
+        <h3>전체 비밀번호 초기화</h3>
+        <p class="lock-note" id="reset-all-note"></p>
+        <label class="field"><span>새 처음 비밀번호 (8자 이상)</span><input id="reset-all-pw" required></label>
+        <label class="field"><span>확인을 위해 관리자 비밀번호를 넣어 주세요</span><input id="reset-all-admin-pw" type="password" autocomplete="current-password" required></label>
+        <p class="error" id="reset-all-error"></p>
+        <div class="actions">
+          <button type="button" id="reset-all-cancel">취소</button>
+          <button type="submit" class="danger-fill">모두 초기화</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- 저장, 삭제 뒤 아래쪽에 잠깐 뜨는 확인 메시지 -->
+    <div id="toast" class="toast" hidden></div>
+
+    <div id="grip" class="grip" title="끌어서 크기 바꾸기"></div>
+  </div>
+  <script src="renderer.js"></script>
+</body>
+</html>

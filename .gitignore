@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.log
+# 백업·옮기기 파일, 연결 코드 (학교 계정 정보가 들어 있어요)
+DB/
+*.jplemove
+jple_DB백업_*.json
+*연결코드*.txt
+# Supabase CLI가 만드는 프로젝트 연결 정보
+supabase/.temp/
